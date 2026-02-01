@@ -2,6 +2,7 @@ version: '3'
 
 vars:
   BINARY_NAME: mysqlmcp
+  CLIENT_BINARY_NAME: mysqlmcp-client
   CONFIG: config.toml
 
 
@@ -14,13 +15,16 @@ tasks:
   build:
     desc: Build the binary
     cmds:
+      - mkdir -p bin
       - go build -o bin/{{.BINARY_NAME}} .
+      - go build -o bin/{{.CLIENT_BINARY_NAME}} ./cmd/client
     sources:
       - '**/*.go'
       - go.mod
       - go.sum
     generates:
       - bin/{{.BINARY_NAME}}
+      - bin/{{.CLIENT_BINARY_NAME}}
 
   test:
     desc: Run tests
