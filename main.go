@@ -105,12 +105,23 @@ func normalizeList(values []string) []string {
 }
 
 func isReadOnlyQuery(query string, denySubstrings []string) bool {
-	normalized := strings.TrimSpace(strings.ToLower(query))
+	trimmed := strings.TrimSpace(query)
+	normalized := strings.ToLower(trimmed)
 	if normalized == "" {
 		return false
 	}
 	if strings.Contains(normalized, ";") {
-		return false
+		if !strings.HasSuffix(normalized, ";") {
+			return false
+		}
+		if strings.Count(normalized, ";") != 1 {
+			return false
+		}
+		trimmed = strings.TrimSpace(trimmed[:len(trimmed)-1])
+		normalized = strings.ToLower(trimmed)
+		if normalized == "" {
+			return false
+		}
 	}
 	for _, fragment := range denySubstrings {
 		if fragment != "" && strings.Contains(normalized, fragment) {
@@ -121,7 +132,7 @@ func isReadOnlyQuery(query string, denySubstrings []string) bool {
 	if err != nil {
 		return false
 	}
-	stmt, err := parser.Parse(query)
+	stmt, err := parser.Parse(trimmed)
 	if err != nil {
 		return false
 	}

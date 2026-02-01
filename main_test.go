@@ -26,6 +26,7 @@ func TestIsReadOnlyQuery(t *testing.T) {
 	}{
 		{"select ok", "SELECT * FROM users", true},
 		{"show ok", "show tables", true},
+		{"show ok trailing semicolon", "show tables;", true},
 		{"explain ok", "explain select * from users", true},
 		{"empty", "   ", false},
 		{"multi statement", "select 1; select 2", false},
