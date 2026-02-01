@@ -29,7 +29,7 @@ tasks:
   test:
     desc: Run tests
     cmds:
-      - go test ./...
+      - go test ./... -count=1
 
   run:
     desc: Run the server with a config file
