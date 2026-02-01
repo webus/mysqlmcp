@@ -1,0 +1,109 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release (e.g., v1.2.3)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          TAG_INPUT="${{ github.event.inputs.tag }}"
+          REF_NAME="${GITHUB_REF_NAME}"
+          if [ -n "$TAG_INPUT" ]; then
+            TAG="$TAG_INPUT"
+          else
+            TAG="$REF_NAME"
+          fi
+          if [ -z "$TAG" ] || [[ "$TAG" != v* ]]; then
+            echo "Tag must start with v (e.g., v1.2.3). Got: '$TAG'"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${TAG#v}"
+          NAME="mysqlmcp"
+          mkdir -p dist
+
+          build_one() {
+            local GOOS="$1"
+            local GOARCH="$2"
+            local EXT=""
+            if [ "$GOOS" = "windows" ]; then
+              EXT=".exe"
+            fi
+            local OUT_NAME="${NAME}_${VERSION}_${GOOS}_${GOARCH}"
+            local BIN_PATH="dist/${OUT_NAME}${EXT}"
+
+            echo "Building ${GOOS}/${GOARCH}"
+            GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 go build -o "$BIN_PATH" .
+
+            if [ "$GOOS" = "windows" ]; then
+              (cd dist && zip -9 "${OUT_NAME}.zip" "${OUT_NAME}${EXT}")
+              rm -f "$BIN_PATH"
+            else
+              (cd dist && tar -czf "${OUT_NAME}.tar.gz" "${OUT_NAME}${EXT}")
+              rm -f "$BIN_PATH"
+            fi
+          }
+
+          build_one linux amd64
+          build_one linux arm64
+          build_one darwin amd64
+          build_one darwin arm64
+          build_one windows amd64
+          build_one windows arm64
+
+          (cd dist && shasum -a 256 * > checksums.txt)
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt

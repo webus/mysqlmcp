@@ -1,0 +1,43 @@
+version: '3'
+
+vars:
+  BINARY_NAME: mysqlmcp
+  CONFIG: config.toml
+
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -o bin/{{.BINARY_NAME}} .
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+    generates:
+      - bin/{{.BINARY_NAME}}
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test ./...
+
+  run:
+    desc: Run the server with a config file
+    cmds:
+      - go run . -config {{.CONFIG}}
+
+  fmt:
+    desc: Format Go code
+    cmds:
+      - gofmt -w .
+
+  tidy:
+    desc: Tidy go.mod and go.sum
+    cmds:
+      - go mod tidy
